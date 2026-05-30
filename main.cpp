@@ -6,7 +6,7 @@
 #include <algorithm>
 #include "font.h"
 #include <fstream>
-#include <iostream> // For error logging if a file missing
+#include <iostream> 
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -19,15 +19,6 @@ int HEIGHT = 720;
 uint32_t* framebuffer = nullptr;
 HWND globalHwnd = NULL;
 BITMAPINFO bmi = {};
-
-const int MAP_X = 1024;
-const int MAP_Y = 1024;
-
-
-
-
-
-
 
 struct Texture {
     uint32_t* pixels = nullptr;
@@ -63,6 +54,50 @@ void PutPixelAlpha(int x, int y, uint32_t color, float alpha) {
         framebuffer[idx] = (r << 16) | (g << 8) | b;
     }
 }
+void DrawSprite(int x, int y, const Texture& tex) {
+    for (int py = 0; py < tex.height; py++) {
+        int sy = y + py;
+        if (sy < 0 || sy >= HEIGHT) continue;
+
+        for (int px = 0; px < tex.width; px++) {
+            int sx = x + px;
+            if (sx < 0 || sx >= WIDTH) continue;
+
+            uint32_t color = tex.pixels[py * tex.width + px];
+
+            uint8_t a = (color >> 24) & 0xFF;
+            if (a == 0) continue; 
+
+            float alpha = a / 255.0f;
+            PutPixelAlpha(sx, sy, color, alpha);
+        }
+    }
+}
+
+void DrawSpriteScaled(int x, int y, const Texture& tex, float scale) {
+    int w = (int)(tex.width * scale);
+    int h = (int)(tex.height * scale);
+
+    for (int py = 0; py < h; py++) {
+        int sy = y + py;
+        if (sy < 0 || sy >= HEIGHT) continue;
+
+        int srcY = (int)(py / scale);
+        for (int px = 0; px < w; px++) {
+            int sx = x + px;
+            if (sx < 0 || sx >= WIDTH) continue;
+
+            int srcX = (int)(px / scale);
+            uint32_t color = tex.pixels[srcY * tex.width + srcX];
+
+            uint8_t a = (color >> 24) & 0xFF;
+            if (a == 0) continue;
+
+            float alpha = a / 255.0f;
+            PutPixelAlpha(sx, sy, color, alpha);
+        }
+    }
+}
 
 void DrawChar(int x, int y, char c, uint8_t r, uint8_t g, uint8_t b) {
     if (c >= 'a' && c <= 'z') {
@@ -80,9 +115,6 @@ void DrawChar(int x, int y, char c, uint8_t r, uint8_t g, uint8_t b) {
         }
     }
 }
-
-
-
 void DrawString(int x, int y, const char* str, uint8_t r, uint8_t g, uint8_t b) {
     while (*str) {
         DrawChar(x, y, *str, r, g, b);
