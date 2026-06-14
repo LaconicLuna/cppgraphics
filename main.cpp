@@ -108,7 +108,7 @@ void DrawChar(int x, int y, char c, uint8_t r, uint8_t g, uint8_t b) {
     const unsigned char* glyph = font8x8[index];
     for (int ky = 0; ky < 8; ky++) {
         for (int kx = 0; kx < 8; kx++) {
-            if (glyph[ky] & (1 << (7 - kx))) {
+            if (glyph[ky] & (1 << kx)) {
                 PutPixel(x + kx + 1, y + ky + 1, 0x000000);
                 PutPixel(x + kx, y + ky, (r << 16) | (g << 8) | b);
             }
