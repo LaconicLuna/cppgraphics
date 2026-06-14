@@ -1,6 +1,6 @@
 # cppgraphics
 compile with
-```g++ main.cpp -lgdi32```
+```g++ main.cpp renderer.cpp -lgdi32```
 
 lightweight, mostly dependency free (uses stb_image.h)  
 software rendered framebuffer  
