@@ -20,112 +20,6 @@ uint32_t* framebuffer = nullptr;
 HWND globalHwnd = NULL;
 BITMAPINFO bmi = {};
 
-struct Texture {
-    uint32_t* pixels = nullptr;
-    int width = 0; int height = 0;
-    ~Texture() { if (pixels) stbi_image_free(pixels); }
-};
-
-void LoadPNG(const char* filename, Texture& outTex) {
-    int channels;
-    outTex.pixels = (uint32_t*)stbi_load(filename, &outTex.width, &outTex.height, &channels, 4);
-    if (!outTex.pixels) {
-        outTex.width = 16; outTex.height = 16;
-        outTex.pixels = new uint32_t[16 * 16];
-        std::fill_n(outTex.pixels, 16 * 16, 0xFFFF00FF);
-    }
-}
-
-void PutPixel(int x, int y, uint32_t color) {
-    if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) {
-        framebuffer[y * WIDTH + x] = color;
-    }
-}
-
-void PutPixelAlpha(int x, int y, uint32_t color, float alpha) {
-    if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) {
-        int idx = y * WIDTH + x;
-        uint32_t bg = framebuffer[idx];
-        uint8_t rB = (bg >> 16) & 0xFF; uint8_t gB = (bg >> 8) & 0xFF; uint8_t bB = bg & 0xFF;
-        uint8_t rF = (color >> 16) & 0xFF; uint8_t gF = (color >> 8) & 0xFF; uint8_t bF = color & 0xFF;
-        uint8_t r = (uint8_t)(rF * alpha + rB * (1.0f - alpha));
-        uint8_t g = (uint8_t)(gF * alpha + gB * (1.0f - alpha));
-        uint8_t b = (uint8_t)(bF * alpha + bB * (1.0f - alpha));
-        framebuffer[idx] = (r << 16) | (g << 8) | b;
-    }
-}
-void DrawSprite(int x, int y, const Texture& tex) {
-    for (int py = 0; py < tex.height; py++) {
-        int sy = y + py;
-        if (sy < 0 || sy >= HEIGHT) continue;
-
-        for (int px = 0; px < tex.width; px++) {
-            int sx = x + px;
-            if (sx < 0 || sx >= WIDTH) continue;
-
-            uint32_t color = tex.pixels[py * tex.width + px];
-
-            uint8_t a = (color >> 24) & 0xFF;
-            if (a == 0) continue; 
-
-            float alpha = a / 255.0f;
-            PutPixelAlpha(sx, sy, color, alpha);
-        }
-    }
-}
-
-void DrawSpriteScaled(int x, int y, const Texture& tex, float scale) {
-    int w = (int)(tex.width * scale);
-    int h = (int)(tex.height * scale);
-
-    for (int py = 0; py < h; py++) {
-        int sy = y + py;
-        if (sy < 0 || sy >= HEIGHT) continue;
-
-        int srcY = (int)(py / scale);
-        for (int px = 0; px < w; px++) {
-            int sx = x + px;
-            if (sx < 0 || sx >= WIDTH) continue;
-
-            int srcX = (int)(px / scale);
-            uint32_t color = tex.pixels[srcY * tex.width + srcX];
-
-            uint8_t a = (color >> 24) & 0xFF;
-            if (a == 0) continue;
-
-            float alpha = a / 255.0f;
-            PutPixelAlpha(sx, sy, color, alpha);
-        }
-    }
-}
-
-void DrawChar(int x, int y, char c, uint8_t r, uint8_t g, uint8_t b) {
-    if (c >= 'a' && c <= 'z') {
-        c -= 32;
-    }
-    unsigned char index = (unsigned char)c;
-    if (index > 127) return;
-    const unsigned char* glyph = font8x8[index];
-    for (int ky = 0; ky < 8; ky++) {
-        for (int kx = 0; kx < 8; kx++) {
-            if (glyph[ky] & (1 << kx)) {
-                PutPixel(x + kx + 1, y + ky + 1, 0x000000);
-                PutPixel(x + kx, y + ky, (r << 16) | (g << 8) | b);
-            }
-        }
-    }
-}
-void DrawString(int x, int y, const char* str, uint8_t r, uint8_t g, uint8_t b) {
-    while (*str) {
-        DrawChar(x, y, *str, r, g, b);
-        x += 8; 
-        str++;
-    }
-}
-
-
-
-
 
 void RenderUI() {
     char fpsBuffer[32];
@@ -134,9 +28,12 @@ void RenderUI() {
 }
 void RenderScene() {
     std::fill_n(framebuffer, WIDTH * HEIGHT, 0x0A0F1D);
+
 }
+void Update(float dt){
 
 
+}
 
 float ComputeDeltaTime() {
     static auto last = std::chrono::high_resolution_clock::now();
@@ -168,16 +65,19 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int nCmdShow) {
     framebuffer = new uint32_t[WIDTH * HEIGHT];
     bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER); bmi.bmiHeader.biWidth = WIDTH; bmi.bmiHeader.biHeight = -HEIGHT;
     bmi.bmiHeader.biPlanes = 1; bmi.bmiHeader.biBitCount = 32; bmi.bmiHeader.biCompression = BI_RGB;
-
     HDC hdc = GetDC(hwnd); 
-
     MSG msg = {}; bool running = true;
+
+    InitMap();
+    InitTrains();
+
     while (running) {
         if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
             if (msg.message == WM_QUIT) { running = false; }
             TranslateMessage(&msg); DispatchMessage(&msg);
         } else {
             dt = ComputeDeltaTime();
+            Update(dt);
             RenderScene();
             RenderUI();
             StretchDIBits(hdc, 0, 0, WIDTH, HEIGHT, 0, 0, WIDTH, HEIGHT, framebuffer, &bmi, DIB_RGB_COLORS, SRCCOPY);
